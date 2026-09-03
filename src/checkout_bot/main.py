@@ -3,7 +3,7 @@ import asyncio
 from .bot import CheckoutBot
 from .models import Product, PurchaseTarget
 from .retailer import SimulatedRetailer
-
+from .simulator import InventorySimulator
 
 async def main():
 
@@ -55,19 +55,27 @@ async def main():
         poll_interval=0.05,
     )
 
-    async def simulate_restock():
+    simulator = InventorySimulator(
+        retailer=retailer,
+        product_ids=[
+            product.product_id
+            for product in products
+        ],
+        event_interval=(0.5,2.0),
+        seed=42
+    )
 
-        await asyncio.sleep(2)
+    async def run_simulator():
 
-        print("\n[RETAILER] GPU restocked!\n")
+        try:
+            await simulator.run()
+        except asyncio.CancelledError:
+            simulator.stop()
+            raise
 
-        await retailer.restock(
-            "gpu-001",
-            1,
-        )
     await asyncio.gather(
         bot.run(),
-        simulate_restock(),
+        run_simulator(),
     )
 
 if __name__ == "__main__":

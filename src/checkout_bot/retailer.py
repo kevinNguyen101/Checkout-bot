@@ -30,7 +30,7 @@ class SimulatedRetailer:
             name=product.name,
             variant=product.variant,
             price=product.price,
-            inventory=product.inventory,
+            inventory=product.inventory
         )
 
     async def add_to_cart(
@@ -50,14 +50,12 @@ class SimulatedRetailer:
                 return None
 
             return Cart(
-                items=[
-                    CartItem(
+                items=[CartItem(
                         product_id=product.product_id,
                         variant=product.variant,
                         quantity=quantity,
-                        unit_price=product.price,
-                    )
-                ]
+                        unit_price=product.price
+                    )]
             )
 
     async def checkout(self, cart: Cart) -> PurchaseResult:
@@ -68,33 +66,45 @@ class SimulatedRetailer:
                 product = self.products.get(item.product_id)
 
                 if product is None:
-                    return PurchaseResult(
-                        success=False,
-                        error="Product no longer exists",
-                    )
+                    return PurchaseResult(success=False, error="Product no longer exists")
 
                 if product.inventory < item.quantity:
-                    return PurchaseResult(
-                        success=False,
-                        error="Insufficient inventory",
-                    )
+                    return PurchaseResult(success=False, error="Insufficient inventory")
+                
             for item in cart.items:
                 self.products[item.product_id].inventory -= item.quantity
 
             order_id = str(uuid.uuid4())
-            return PurchaseResult(
-                success=True,
-                order_id=order_id,
-                total=cart.total,
-            )
+            return PurchaseResult(success=True, order_id=order_id, total=cart.total)
 
-    async def restock(
-        self,
-        product_id: str,
-        quantity: int,
-    ) -> None:
+    async def restock(self, product_id: str, quantity: int) -> None:
         async with self._lock:
             product = self.products.get(product_id)
 
             if product is not None:
                 product.inventory += quantity
+
+    async def remove_inventory(self, product_id: str, quantity: int) -> bool:
+        async with self._lock:
+            product = self.products.get(product_id)
+
+            if product is None:
+                return False
+
+            actual_quantity = min(quantity, product.inventory)
+
+            product.inventory -= actual_quantity
+            return actual_quantity > 0
+
+    async def change_price(self, product_id: str, new_price: float) -> bool:
+        async with self._lock:
+            product = self.products.get(product_id)
+
+            if product is None:
+                return False
+            
+            if new_price < 0:
+                return False
+            
+            product.price = new_price
+            return True
